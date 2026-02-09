@@ -1,0 +1,32 @@
+{
+  "version": "1.0",
+  "tracks": {
+    "ambient_bedtime": {
+      "path": "assets\\music\\calm\\ambient_bedtime.wav",
+      "name": "ambient_bedtime",
+      "category": "calm",
+      "duration": 0.0,
+      "artist": "",
+      "url": "",
+      "tags": []
+    },
+    "ambient_5min": {
+      "path": "assets\\music\\calm\\ambient_5min.wav",
+      "name": "ambient_5min",
+      "category": "calm",
+      "duration": 0.0,
+      "artist": "",
+      "url": "",
+      "tags": []
+    },
+    "relaxing_ambient": {
+      "path": "assets\\music\\calm\\relaxing_ambient.mp3",
+      "name": "relaxing_ambient",
+      "category": "calm",
+      "duration": 0.0,
+      "artist": "",
+      "url": "",
+      "tags": []
+    }
+  }
+}

@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+
+# Output and data (don't commit generated images)
+output/
+*.png
+*.jpg
+*.jpeg
+queue_state.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local notes and Chrome automation profile
+.notes/
+QUICKSTART.md
+C:\\Users\\*
+C\\\\Users*
+*Chrome*User*Data*
+
+# Credentials (never commit these)
+youtube_client_secret.json
+.youtube_token.json
+
+# Logs
+logs/
+*.log
+
+# Keep data folder structure but not images
+!data/
+data/environments/*
+!data/environments/.gitkeep
+data/characters/*
+!data/characters/.gitkeep
+.env

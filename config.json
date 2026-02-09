@@ -1,0 +1,49 @@
+{
+  "whisk_url": "https://labs.google/fx/tools/whisk/project",
+  "browser": {
+    "headless": false,
+    "slow_mo": 100,
+    "user_data_dir": null
+  },
+  "paths": {
+    "environments": "./data/environments",
+    "characters": "./data/characters",
+    "output": "./output",
+    "scenes_file": "./data/scenes.csv",
+    "videos": "./output/videos",
+    "audio": "./output/audio",
+    "music_library": "./assets/music",
+    "thumbnails": "./output/thumbnails"
+  },
+  "generation": {
+    "images_per_prompt": 4,
+    "batches_per_scene": 2,
+    "image_format": "landscape",
+    "download_timeout": 30
+  },
+  "queue": {
+    "retry_on_failure": true,
+    "max_retries": 3,
+    "delay_between_scenes": 5
+  },
+  "music_sources": {
+    "pixabay_enabled": true,
+    "pixabay_api_key": "",
+    "local_library": "./assets/music"
+  },
+  "youtube": {
+    "channel_name": "",
+    "channel_handle": "",
+    "upload_schedule": "Tuesday & Friday",
+    "default_category": "Education",
+    "default_privacy": "unlisted",
+    "default_tags": [
+      "bedtime stories",
+      "sleep stories",
+      "ghibli style stories",
+      "calming narration",
+      "cozy bedtime",
+      "relaxing stories"
+    ]
+  }
+}
