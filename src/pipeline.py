@@ -19,10 +19,14 @@ from src.config import AppConfig, load_config
 from src.models import Scene, VideoProject, VideoMetadata, AudioVersionType, Chapter
 from src.video_assembler import VideoAssembler, VideoSegment
 from src.audio_generator import AudioGenerator, NarrationSegment, TTSVoice
-from src.youtube_metadata import (
-    YouTubeMetadataGenerator, generate_chapters_from_scenes,
-    generate_title, format_timestamp
-)
+try:
+    from src.youtube_metadata import (
+        YouTubeMetadataGenerator, generate_chapters_from_scenes,
+        generate_title, format_timestamp
+    )
+    HAS_YOUTUBE_METADATA = True
+except ImportError:
+    HAS_YOUTUBE_METADATA = False
 from src.music_library import MusicLibrary, MusicCategory, setup_music_library
 
 
@@ -93,7 +97,7 @@ class VideoPipeline:
         self.config = config or load_config()
         self.video_assembler = VideoAssembler(self.config)
         self.audio_generator = AudioGenerator(self.config)
-        self.metadata_generator = YouTubeMetadataGenerator(self.config)
+        self.metadata_generator = YouTubeMetadataGenerator(self.config) if HAS_YOUTUBE_METADATA else None
         self.music_library = setup_music_library(config=self.config)
 
         # Setup output directories
@@ -122,11 +126,11 @@ class VideoPipeline:
         """
         project = VideoProject(
             project_id=project_id,
-            title=pipeline_config.custom_title or generate_title(
+            title=pipeline_config.custom_title or (generate_title(
                 character_name=pipeline_config.character_name,
                 theme=pipeline_config.theme,
                 style=pipeline_config.style,
-            ),
+            ) if HAS_YOUTUBE_METADATA else f"{pipeline_config.character_name} - {pipeline_config.theme}"),
             scenes=scenes,
             style_preset=pipeline_config.style,
             character_name=pipeline_config.character_name,
@@ -293,6 +297,10 @@ class VideoPipeline:
         Returns:
             VideoMetadata object.
         """
+        if not HAS_YOUTUBE_METADATA or not self.metadata_generator:
+            console.print("[yellow]Skipping metadata generation (youtube_metadata not available)[/yellow]")
+            return None
+
         # Generate chapters from segments
         chapters = None
         if segments:
