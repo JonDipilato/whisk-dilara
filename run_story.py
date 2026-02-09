@@ -1353,7 +1353,11 @@ class StoryVideoMaker:
         """
         header("STEP 6: Generating YouTube Metadata & Thumbnail")
 
-        from src.youtube_metadata import YouTubeMetadataGenerator, generate_chapters
+        try:
+            from src.youtube_metadata import YouTubeMetadataGenerator, generate_chapters
+        except ImportError:
+            status("youtube_metadata not available — skipping metadata generation")
+            return
         from src.config import load_config
 
         app_config = load_config()
