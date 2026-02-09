@@ -244,18 +244,72 @@ class WhiskController:
             return
 
         try:
-            # Look for "ADD IMAGES" button to expand panels
-            buttons = self.driver.find_elements(By.TAG_NAME, "button")
+            # If file inputs already exist in the DOM, assume panels are available.
+            file_inputs = self.driver.find_elements(By.CSS_SELECTOR, "input[type='file']")
+            if file_inputs:
+                self.panels_expanded = True
+                return
+
+            # Try to locate a toggle that controls a panel containing file inputs.
+            buttons = self.driver.find_elements(By.CSS_SELECTOR, "button[aria-controls], button[aria-expanded]")
             for btn in buttons:
-                btn_text = btn.text or ""
-                if "ADD IMAGES" in btn_text.upper() or "add" in btn_text.lower() and "image" in btn_text.lower():
+                controls_id = (btn.get_attribute("aria-controls") or "").strip()
+                if not controls_id:
+                    continue
+
+                try:
+                    panel = self.driver.find_element(By.ID, controls_id)
+                except Exception:
+                    panel = None
+
+                if panel:
+                    panel_inputs = panel.find_elements(By.CSS_SELECTOR, "input[type='file']")
+                    if panel_inputs:
+                        if (btn.get_attribute("aria-expanded") or "").lower() != "true":
+                            btn.click()
+                            console.print("[cyan]Expanded image panels[/cyan]")
+                            time.sleep(1)
+                        self.panels_expanded = True
+                        return
+
+            # Fallback: click a collapsed toggle and confirm file inputs appear.
+            for btn in buttons:
+                if (btn.get_attribute("aria-expanded") or "").lower() == "false":
                     btn.click()
-                    console.print("[cyan]Expanded image panels[/cyan]")
                     time.sleep(1)
-                    self.panels_expanded = True
-                    break
+                    file_inputs = self.driver.find_elements(By.CSS_SELECTOR, "input[type='file']")
+                    if file_inputs:
+                        console.print("[cyan]Expanded image panels[/cyan]")
+                        self.panels_expanded = True
+                        return
         except Exception as e:
             console.print(f"[yellow]Could not expand panels: {e}[/yellow]")
+
+    def _button_has_material_icon(self, button, icon_names: set[str]) -> bool:
+        """Check if a button contains a Material icon with one of the given names."""
+        try:
+            icon_elems = button.find_elements(
+                By.CSS_SELECTOR,
+                "mat-icon, span.material-icons, i.material-icons, "
+                "span.material-symbols-outlined, span.material-symbols-rounded, span.material-symbols-sharp"
+            )
+            for elem in icon_elems:
+                icon_text = (elem.text or "").strip().lower()
+                if icon_text in icon_names:
+                    return True
+
+            inner_html = (button.get_attribute("innerHTML") or "").lower()
+            for icon in icon_names:
+                if (f">{icon}<" in inner_html or
+                    f"material-icons\">{icon}<" in inner_html or
+                    f"material-symbols-outlined\">{icon}<" in inner_html or
+                    f"material-symbols-rounded\">{icon}<" in inner_html or
+                    f"material-symbols-sharp\">{icon}<" in inner_html):
+                    return True
+        except Exception:
+            return False
+
+        return False
 
     def _upload_file_by_ref(self, file_path: Path, ref_id: str, upload_type: str) -> bool:
         """Upload a file using the hidden file input by ref ID."""
@@ -311,16 +365,21 @@ class WhiskController:
     def _click_add_subject_button(self) -> bool:
         """Click the '+' button next to SUBJECT label to add another character slot WITHIN the Subject section."""
         try:
-            # Find all buttons with aria-label "Add new category"
+            # Find all visible buttons with an "add" icon, then pick the topmost one.
             all_buttons = self.driver.find_elements(By.TAG_NAME, "button")
 
+            add_icon_names = {"add", "add_circle", "add_box", "add_circle_outline", "add_box_outline"}
             add_category_buttons = []
             for i, btn in enumerate(all_buttons):
-                aria_label = btn.get_attribute("aria-label") or ""
-                if "Add new category" in aria_label:
+                try:
+                    if not btn.is_displayed():
+                        continue
+                except Exception:
+                    continue
+
+                if self._button_has_material_icon(btn, add_icon_names):
                     y_pos = btn.location.get('y', 9999)
                     add_category_buttons.append((i, y_pos))
-                    console.print(f"[cyan]Found 'Add new category' button #{i} at y={y_pos}[/cyan]")
 
             # Sort by Y position - the first one is SUBJECT section, second is SCENE, third is STYLE
             add_category_buttons.sort(key=lambda x: x[1])
@@ -328,13 +387,13 @@ class WhiskController:
             if len(add_category_buttons) >= 1:
                 # Click the first "Add new category" button (SUBJECT section)
                 button_index = add_category_buttons[0][0]
-                console.print(f"[cyan]Clicking button #{button_index} (SUBJECT section +)[/cyan]")
+                console.print(f"[cyan]Clicking add button #{button_index} (topmost, SUBJECT section)[/cyan]")
                 all_buttons[button_index].click()
                 console.print("[green]Clicked SUBJECT section's + button (adding character slot)[/green]")
                 time.sleep(3)
                 return True
 
-            console.print("[yellow]Could not find any 'Add new category' buttons[/yellow]")
+            console.print("[yellow]Could not find any add buttons[/yellow]")
             return False
 
         except Exception as e:
@@ -454,16 +513,26 @@ class WhiskController:
     def set_prompt(self, prompt: str) -> bool:
         """Set the generation prompt (ref_100)."""
         try:
-            # Find textarea with placeholder containing "Describe your idea"
+            # Find the first visible textarea (language-agnostic)
             textareas = self.driver.find_elements(By.TAG_NAME, "textarea")
+            target = None
             for textarea in textareas:
-                placeholder = textarea.get_attribute("placeholder") or ""
-                if "Describe your idea" in placeholder:
-                    textarea.clear()
-                    textarea.send_keys(prompt)
-                    console.print(f"[green]Set prompt: {prompt[:50]}...[/green]")
-                    time.sleep(1)
-                    return True
+                try:
+                    if textarea.is_displayed():
+                        target = textarea
+                        break
+                except Exception:
+                    continue
+
+            if not target and textareas:
+                target = textareas[0]
+
+            if target:
+                target.clear()
+                target.send_keys(prompt)
+                console.print(f"[green]Set prompt: {prompt[:50]}...[/green]")
+                time.sleep(1)
+                return True
 
             console.print("[yellow]Could not find prompt input[/yellow]")
             return False
@@ -648,9 +717,12 @@ class WhiskController:
                         '[class*="result"] img, [class*="output"] img, [class*="generated"] img, '
                         'main img[src*="storage"], [class*="preview"] img[src*="storage"]')
 
-                    # Also look for DOWNLOAD button enabled state
-                    download_btns = self.driver.find_elements(By.XPATH,
-                        "//button[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'download')]")
+                    # Also look for a download button with a download/folder icon
+                    download_icons = {"download", "file_download", "download_for_offline", "folder", "folder_open"}
+                    download_btns = []
+                    for btn in self.driver.find_elements(By.TAG_NAME, "button"):
+                        if self._button_has_material_icon(btn, download_icons):
+                            download_btns.append(btn)
 
                     if result_images or download_btns:
                         console.print(f"[green]Generation complete! (waited {waited_secs}s)[/green]")
@@ -700,15 +772,13 @@ class WhiskController:
             buttons = self.driver.find_elements(By.TAG_NAME, "button")
             download_clicked = False
 
-            # First try: Look for the yellow download button with folder icon
+            # First try: Look for a download button with download/folder icon
+            download_icons = {"download", "file_download", "download_for_offline", "folder", "folder_open"}
             for btn in buttons:
                 try:
-                    btn_text = (btn.text or "").upper()
-                    inner_html = btn.get_attribute("innerHTML") or ""
-
-                    # The download all button has folder icon and "DOWNLOAD ALL IMAGES" text
-                    if ("DOWNLOAD" in btn_text and "ALL" in btn_text) or \
-                       ("folder" in inner_html.lower() and "download" in inner_html.lower()):
+                    if not btn.is_displayed():
+                        continue
+                    if self._button_has_material_icon(btn, download_icons):
                         # Ensure button is visible and clickable
                         self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
                         time.sleep(0.5)
@@ -719,29 +789,13 @@ class WhiskController:
                 except:
                     continue
 
-            # Second try: Look for any download button by aria-label
-            if not download_clicked:
-                for btn in buttons:
-                    try:
-                        aria = (btn.get_attribute("aria-label") or "").lower()
-                        if "download" in aria and "all" in aria:
-                            self.driver.execute_script("arguments[0].scrollIntoView(true);", btn)
-                            time.sleep(0.5)
-                            btn.click()
-                            download_clicked = True
-                            console.print("[cyan]Clicked download button (aria-label)[/cyan]")
-                            break
-                    except:
-                        continue
-
-            # Third try: Look for download icon in top toolbar
+            # Second try: Look for download icon in top toolbar
             if not download_clicked:
                 toolbar_buttons = self.driver.find_elements(By.CSS_SELECTOR,
                     'header button, [role="toolbar"] button, .toolbar button')
                 for btn in toolbar_buttons:
                     try:
-                        inner = btn.get_attribute("innerHTML") or ""
-                        if "download" in inner.lower() or "folder" in inner.lower():
+                        if self._button_has_material_icon(btn, download_icons):
                             btn.click()
                             download_clicked = True
                             console.print("[cyan]Clicked download button (toolbar)[/cyan]")
